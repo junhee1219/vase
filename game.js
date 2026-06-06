@@ -12,38 +12,49 @@
   const SHADE_HI = { 5: 1.65 }, SHADE_LO = { 5: 1.0 };
   const NUM_COLORS = 8; // 병 수는 레벨 난이도에 따라 core의 levelConfig가 정한다
 
-  // 최고 도달 레벨에 따라 진화하는 물친구 💧→🐉
-  const EVOS = [[1, '💧'], [5, '🫧'], [10, '🐠'], [15, '🐙'], [20, '🐬'], [25, '🦈'], [30, '🐳'], [40, '🐉']];
+  // 최고 도달 레벨에 따라 진화하는 물친구 (game-icons 심볼: [기준레벨, 심볼id, 이름, 색])
+  const EVOS = [
+    [1, 'g-drop', '물방울', '#6fc3ff'],
+    [5, 'g-bubbles', '방울방울', '#7fe3d6'],
+    [10, 'g-tropical-fish', '열대어', '#ffab5e'],
+    [15, 'g-octopus', '문어', '#c08bff'],
+    [20, 'g-dolphin', '돌고래', '#6fa9ff'],
+    [25, 'g-shark-fin', '상어', '#9fb4c8'],
+    [30, 'g-sperm-whale', '고래', '#7f9fd0'],
+    [40, 'g-dragon-head', '드래곤', '#8fdc7a'],
+  ];
   const getMaxClear = () => parseInt(localStorage.getItem('vaseMaxClear') || '0', 10) || 0;
   function evoFor(maxClear) {
-    let e = EVOS[0][1];
-    for (const [lv, em] of EVOS) if (maxClear + 1 >= lv) e = em;
+    let e = EVOS[0];
+    for (const ev of EVOS) if (maxClear + 1 >= ev[0]) e = ev;
     return e;
   }
   function nextEvo(maxClear) {
-    for (const [lv, em] of EVOS) if (maxClear + 1 < lv) return [lv, em];
+    for (const ev of EVOS) if (maxClear + 1 < ev[0]) return ev;
     return null;
   }
+  function setEvoIcon(el, ev) {
+    el.style.fill = ev[3];
+    el.querySelector('use').setAttribute('href', '#' + ev[1]);
+  }
 
-  // 레벨마다 도는 배경 테마 (액체가 돋보이게 전부 어두운 톤)
+  // 레벨마다 도는 배경 테마 — 단일 색조의 차분한 다크 톤 (액체가 주인공)
   const THEMES = [
-    { bg1: '#2a2350', bg2: '#16414d', base: '#14112b', deep: '#0a0817', ga: '#ff5e9c', gb: '#2bd9ff' }, // 보라밤
-    { bg1: '#0f2d5c', bg2: '#123b46', base: '#0c1530', deep: '#060a1c', ga: '#4d9fff', gb: '#7affd4' }, // 딥블루
-    { bg1: '#143c38', bg2: '#1c2f55', base: '#0e2420', deep: '#071512', ga: '#3dffc8', gb: '#5e8bff' }, // 청록
-    { bg1: '#4a1635', bg2: '#2c1450', base: '#260b22', deep: '#120514', ga: '#ff6b9d', gb: '#b06bff' }, // 와인
-    { bg1: '#1d3a14', bg2: '#14444d', base: '#12240e', deep: '#091406', ga: '#a8ff7d', gb: '#36d9b0' }, // 딥그린
-    { bg1: '#4d2a12', bg2: '#3a1644', base: '#241108', deep: '#140906', ga: '#ffb45e', gb: '#ff5e9c' }, // 선셋
-    { bg1: '#1c2433', bg2: '#3d3414', base: '#11161f', deep: '#080b12', ga: '#ffd66b', gb: '#6b9fff' }, // 네이비골드
-    { bg1: '#0e3a44', bg2: '#2a1650', base: '#0a2229', deep: '#051114', ga: '#2bd9ff', gb: '#c46bff' }, // 다크시안
+    { base: '#232c39', deep: '#1a212c', vig: '#151b24' }, // 잉크 네이비
+    { base: '#1e3431', deep: '#172825', vig: '#12211f' }, // 딥 틸
+    { base: '#2f2622', deep: '#251d1a', vig: '#1f1815' }, // 에스프레소
+    { base: '#253124', deep: '#1d261c', vig: '#182117' }, // 포레스트
+    { base: '#2b2c3e', deep: '#222333', vig: '#1c1d2b' }, // 슬레이트
+    { base: '#34262f', deep: '#291e25', vig: '#22191f' }, // 플럼
+    { base: '#203040', deep: '#192633', vig: '#14202b' }, // 딥 오션
+    { base: '#342a1e', deep: '#292117', vig: '#231c13' }, // 앰버 브라운
   ];
   function applyTheme(lv) {
     const t = THEMES[(lv - 1) % THEMES.length];
     const s = document.documentElement.style;
-    s.setProperty('--bg1', t.bg1); s.setProperty('--bg2', t.bg2);
-    s.setProperty('--base', t.base); s.setProperty('--deep', t.deep);
-    s.setProperty('--glowa', t.ga); s.setProperty('--glowb', t.gb);
+    s.setProperty('--base', t.base); s.setProperty('--deep', t.deep); s.setProperty('--vig', t.vig);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = t.base;
+    if (meta) meta.content = t.deep;
   }
 
   // ── 상태 ──
@@ -63,7 +74,7 @@
   const board = document.getElementById('board');
   const clearEl = document.getElementById('clear');
   const toastEl = document.getElementById('toast');
-  const starEls = [...document.querySelectorAll('#stars .star')];
+  const starEls = [...document.querySelectorAll('#stars .k-star')];
   const recordEl = document.getElementById('clear-record');
 
   const fx = document.getElementById('fx');
@@ -127,7 +138,7 @@
     document.getElementById('moves').textContent = moves;
     document.getElementById('par').textContent = '≤' + par;
     document.getElementById('total-stars').textContent = totalStars();
-    document.getElementById('evo').textContent = evoFor(getMaxClear());
+    setEvoIcon(document.getElementById('evo-icon'), evoFor(getMaxClear()));
   }
 
   function fmtTime(ms) {
@@ -352,7 +363,7 @@
     }
     if (C.isWin(tubes)) { onWin(); return; }
     // 막힘 감지: 가능한 수가 하나도 없으면 알려준다
-    if (!anyMoveExists()) { toast('막혔어요! ↩ 되돌리기로 살려보세요'); A.bad(); }
+    if (!anyMoveExists()) { toast('막혔어요! 되돌리기로 살려보세요'); A.bad(); }
   }
 
   function anyMoveExists() {
@@ -378,7 +389,7 @@
     // 최고 도달 레벨 갱신 + 진화 체크
     const maxBefore = getMaxClear();
     if (level > maxBefore) localStorage.setItem('vaseMaxClear', String(level));
-    const evolved = evoFor(getMaxClear()) !== evoFor(maxBefore);
+    const evolved = evoFor(getMaxClear())[1] !== evoFor(maxBefore)[1];
     localStorage.setItem('vaseLevel', String(level + 1)); // 클리어 화면에서 나가도 다음 레벨부터
     updateHUD();
 
@@ -399,7 +410,7 @@
       }
       if (evolved) {
         setTimeout(() => {
-          toast(`✨ ${evoFor(getMaxClear())} 물친구가 진화했어요!`, 3000);
+          toast(`물친구가 ${evoFor(getMaxClear())[2]}(으)로 진화했어요!`, 3000);
           A.record(); vibrate([20, 40, 20, 40, 60]);
         }, 380 + stars * 340 + 600);
       }
@@ -417,11 +428,11 @@
   function openLevels() {
     const maxClear = getMaxClear();
     const starsMap = loadJSON('vaseStars');
-    document.getElementById('evo-emoji').textContent = evoFor(maxClear);
+    setEvoIcon(document.getElementById('evo-emoji'), evoFor(maxClear));
     const nx = nextEvo(maxClear);
     document.getElementById('evo-text').innerHTML = nx
-      ? `최고 Lv${maxClear || 0} 클리어<br>Lv${nx[0]} 도달하면 ${nx[1]}로 진화!`
-      : `최고 Lv${maxClear} 클리어 · 최종 진화 완료! 🎉`;
+      ? `최고 Lv${maxClear || 0} 클리어<br>Lv${nx[0]} 도달하면 ${nx[2]}(으)로 진화!`
+      : `최고 Lv${maxClear} 클리어 · 최종 진화 완료!`;
     const grid = document.getElementById('level-grid');
     grid.innerHTML = '';
     for (let lv = 1; lv <= maxClear + 1; lv++) {
@@ -434,7 +445,7 @@
     for (let k = 0; k < 2; k++) { // 잠긴 다음 레벨 살짝 보여주기
       const b = document.createElement('button');
       b.className = 'lv-chip lock';
-      b.innerHTML = '🔒<span class="chip-stars">·</span>';
+      b.innerHTML = '<svg class="ki sm" style="opacity:.75"><use href="#p-lock"/></svg><span class="chip-stars">·</span>';
       grid.appendChild(b);
     }
     levelsModal.classList.remove('hidden');
@@ -506,7 +517,7 @@
   });
   document.getElementById('btn-import').addEventListener('click', () => {
     const ok = importCode(document.getElementById('imp-code').value);
-    if (!ok) { toast('코드가 올바르지 않아요 🤔'); A.bad(); return; }
+    if (!ok) { toast('코드가 올바르지 않아요'); A.bad(); return; }
     A.tubeDone();
     toast('가져오기 완료! 잠시만요…');
     setTimeout(() => location.reload(), 700); // 저장값 기준으로 깔끔하게 재시작
@@ -517,21 +528,13 @@
     secretModal.classList.add('hidden');
     A.uiClick();
     newGame(lv);
-    toast(`Lv${lv}로 점프! 🚀`);
+    toast(`Lv${lv}로 점프!`);
   });
   document.getElementById('secret-close').addEventListener('click', () => secretModal.classList.add('hidden'));
   secretModal.addEventListener('click', (e) => { if (e.target === secretModal) secretModal.classList.add('hidden'); });
 
-  // ── 간식 딥링크: PC에선 앱 스킴이 안 열리므로 "고마워요" 모달로 대체 ──
-  const isMobile = () => /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-  const thanksModal = document.getElementById('thanks');
-  document.getElementById('thanks-close').addEventListener('click', () => thanksModal.classList.add('hidden'));
-  thanksModal.addEventListener('click', (e) => { if (e.target === thanksModal) thanksModal.classList.add('hidden'); });
-  document.querySelectorAll('#snack a').forEach((a) => {
-    a.addEventListener('click', (e) => {
-      if (!isMobile()) { e.preventDefault(); thanksModal.classList.remove('hidden'); }
-    });
-  });
+  // ── 간식 사주기: game-kit snack.js 모듈 (PC fallback 모달 포함) ──
+  initSnack(document.getElementById('snack-mount'));
 
   // ── 파티클 (fx 캔버스, 화면 좌표) ──
   let parts = [];      // {kind, x,y,vx,vy,g,life,age,color,size,rot,vr,sway}
@@ -744,7 +747,7 @@
       board.children[t].classList.add('hint-target');
       hintTimer = setTimeout(() => { if (!busy) render(); }, 950);
     } else if (!r.exhausted) {
-      toast('여기선 못 풀어요 — ↩ 되돌리기!');
+      toast('여기선 못 풀어요 — 되돌리기!');
       A.bad();
     } else {
       // 탐색 예산 초과(드묾): 일단 가능한 수 하나라도
@@ -763,7 +766,9 @@
   });
 
   const muteBtn = document.getElementById('mute');
-  function refreshMute() { muteBtn.textContent = A.muted ? '🔇' : '🔊'; }
+  function refreshMute() {
+    document.querySelector('#mute-icon use').setAttribute('href', A.muted ? '#p-speaker-slash' : '#p-speaker-high');
+  }
   muteBtn.addEventListener('click', () => {
     A.init();
     A.setMuted(!A.muted);

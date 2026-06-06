@@ -11,15 +11,16 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="kit.css">
 <meta property="og:type" content="website">
-<meta property="og:title" content="🧪 물병 정렬 — 한 병에는 한 가지 색만!">
+<meta property="og:title" content="물병 정렬 — 한 병에는 한 가지 색만!">
 <meta property="og:description" content="알록달록 물을 옮겨 담는 중독성 퍼즐. 봇보다 적게 움직이면 별 3개! 출렁이는 물과 폭죽까지 🎆">
 <meta property="og:image" content="https://junhee1219.github.io/vase/og/main.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://junhee1219.github.io/vase/">
 <meta name="twitter:card" content="summary_large_image">
-<title>🧪 물병 정렬</title>
+<title>물병 정렬</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Gowun+Dodum&display=swap');
   :root{
@@ -32,40 +33,52 @@
   body{
     font-family:'Gowun Dodum',sans-serif;
     height:100vh;height:100dvh;width:100vw;overflow:hidden;
-    background:
-      radial-gradient(circle at 15% 0%, var(--bg1,#2a2350) 0%, transparent 45%),
-      radial-gradient(circle at 85% 100%, var(--bg2,#16414d) 0%, transparent 50%),
-      linear-gradient(160deg, var(--base,#14112b) 0%, var(--deep,#0a0817) 70%);
+    /* 단일 색조 + 위가 살짝 밝은 비네트 — 차분한 보드게임 테이블 느낌 */
+    background:radial-gradient(130% 100% at 50% 0%, var(--base,#222b38) 0%, var(--deep,#1a212c) 55%, var(--vig,#161c26) 100%);
     color:#f1edff;display:flex;flex-direction:column;align-items:center;
     padding:calc(8px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
     position:relative;
     user-select:none;-webkit-user-select:none;touch-action:manipulation;
     overscroll-behavior:none;
   }
-  .glow{position:fixed;border-radius:50%;filter:blur(120px);opacity:.3;z-index:0;pointer-events:none;}
-  .glow.a{width:340px;height:340px;background:var(--glowa,#ff5e9c);top:-110px;left:-80px;}
-  .glow.b{width:320px;height:320px;background:var(--glowb,#2bd9ff);bottom:-90px;right:-70px;}
+  /* 미세 도트 질감 — 천천히 흐른다 (맥북 동적 배경처럼).
+     빈 병은 유리 너머로 이 움직임이 비치고, 까만 액체는 불투명해서 멈춰 있음 → 구분 */
+  body::before{
+    content:'';position:fixed;inset:-46px;z-index:0;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.055) 1px, transparent 1.3px);
+    background-size:23px 23px;
+    animation:bg-drift 9s linear infinite;
+  }
+  @keyframes bg-drift{from{transform:translate(0,0);}to{transform:translate(23px,23px);}}
+  /* 아주 옅은 빛이 화면을 가로질러 숨쉬듯 지나간다 */
+  body::after{
+    content:'';position:fixed;top:-30%;left:-45%;width:95%;height:85%;z-index:0;pointer-events:none;
+    background:radial-gradient(50% 50% at 50% 50%, rgba(255,255,255,.06), transparent 70%);
+    animation:bg-breathe 26s ease-in-out infinite alternate;
+  }
+  @keyframes bg-breathe{from{transform:translate(0,0) scale(1);}to{transform:translate(62vw,32vh) scale(1.3);}}
+  @media (prefers-reduced-motion:reduce){body::before,body::after{animation:none;}}
 
   /* ── 상단 바 ── */
   .topbar{display:flex;align-items:center;gap:8px;z-index:2;width:100%;max-width:560px;flex:0 0 auto;}
   .topbar.sub{margin-top:6px;}
-  h1{font-family:'Fredoka',sans-serif;font-weight:700;font-size:21px;letter-spacing:-.5px;background:linear-gradient(135deg,#ffd6e8,#bdeaff 50%,#e0caff);-webkit-background-clip:text;background-clip:text;color:transparent;margin-right:auto;white-space:nowrap;}
+  h1{
+    font-family:'Fredoka',sans-serif;font-weight:600;font-size:20px;letter-spacing:-.3px;
+    color:#f3efe6;margin-right:auto;white-space:nowrap;
+    display:flex;align-items:center;gap:7px;
+  }
+  h1 .logo{width:21px;height:21px;fill:#9fb4c8;}
   .pill{background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(10px);padding:6px 12px;border-radius:999px;font-size:12px;font-family:'Fredoka',sans-serif;display:flex;align-items:center;gap:5px;white-space:nowrap;}
   button.pill{cursor:pointer;color:#f1edff;transition:transform .12s;}
   button.pill:active{transform:scale(.93);}
-  #evo{font-size:15px;}
-  .pill .par{opacity:.65;margin-left:2px;}
+  #evo-icon{width:16px;height:16px;}
+  .pill .k-star{width:14px;height:14px;stroke-width:24;filter:none;}
+  .pill .par{opacity:.65;margin-left:2px;display:inline-flex;align-items:center;gap:3px;}
+  .pill .par .ki{width:12px;height:12px;opacity:.8;}
   .spacer{margin-left:auto;}
-  button.btn{
-    font-family:'Fredoka',sans-serif;font-size:15px;border:none;cursor:pointer;
-    min-width:42px;min-height:36px;padding:6px 13px;border-radius:999px;color:#fff;
-    transition:transform .15s,filter .15s;box-shadow:0 4px 12px rgba(0,0,0,.3);
-  }
-  button.btn:active{transform:scale(.93);}
-  .btn-undo{background:linear-gradient(135deg,#5b8def,#7c5bef);}
-  .btn-new{background:linear-gradient(135deg,#ff7eb3,#ff5e62);}
-  .btn-hint{background:linear-gradient(135deg,#2bd9c0,#1aa6ff);}
-  .btn-ghost{background:var(--glass);border:1px solid var(--glass-border);box-shadow:none;}
+  /* 상단 버튼: 키트 캔디 버튼의 컴팩트 변형 */
+  .topbar .k-btn.sq{min-height:42px;min-width:48px;width:48px;border-radius:14px;}
+  .topbar .k-btn .ki,.topbar .k-btn .ki-o{width:21px;height:21px;}
 
   /* ── 보드 ── */
   #board{flex:1 1 auto;display:grid;grid-template-columns:repeat(4,1fr);justify-items:center;align-items:center;gap:12px;z-index:2;width:100%;max-width:420px;min-height:0;padding:8px 0;}
@@ -127,41 +140,24 @@
   }
   #clear.show .clear-card{transform:scale(1);}
   .clear-card h2{font-family:'Fredoka',sans-serif;font-size:26px;margin-bottom:4px;background:linear-gradient(135deg,#ffd6e8,#bdeaff 60%,#e0caff);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  #stars{display:flex;justify-content:center;gap:10px;margin:14px 0 6px;height:54px;align-items:center;}
-  #stars .star{font-size:44px;filter:grayscale(1) brightness(.45);transform:scale(.7);transition:none;}
-  #stars .star.on{
-    filter:none;
+  #stars{display:flex;justify-content:center;gap:12px;margin:14px 0 6px;height:56px;align-items:center;}
+  #stars .k-star{width:42px;height:42px;fill:#3c3852;stroke:#23203a;filter:none;transform:scale(.75);}
+  #stars .k-star:nth-child(2){width:54px;height:54px;}
+  #stars .k-star.on{
+    fill:#ffc24b;stroke:#8a4d12;
+    filter:drop-shadow(0 0 12px rgba(255,200,80,.55));
     animation:star-pop .5s cubic-bezier(.2,1.6,.4,1) forwards;
-    text-shadow:0 0 18px rgba(255,214,107,.8);
   }
-  #stars .star:nth-child(2){font-size:54px;}
   @keyframes star-pop{0%{transform:scale(.2) rotate(-30deg);}60%{transform:scale(1.25) rotate(8deg);}100%{transform:scale(1) rotate(0);}}
-  #clear-stats{font-size:14px;opacity:.85;margin-bottom:2px;}
+  #clear-stats{font-size:14px;opacity:.85;margin-bottom:2px;display:flex;align-items:center;justify-content:center;gap:5px;}
+  #clear-stats .ki{width:14px;height:14px;opacity:.8;}
   #clear-record{
     display:none;font-family:'Fredoka',sans-serif;font-size:13px;color:#1c1233;font-weight:700;
     background:linear-gradient(135deg,#ffe27a,#ffb45e);border-radius:999px;padding:3px 12px;margin-top:6px;
   }
-  #clear-record.show{display:inline-block;animation:pop .5s ease;}
-  #btn-next{
-    margin-top:16px;width:100%;font-family:'Fredoka',sans-serif;font-size:18px;font-weight:700;
-    border:none;border-radius:16px;padding:14px 0;cursor:pointer;color:#fff;
-    background:linear-gradient(135deg,#7c5bef,#1aa6ff);
-    box-shadow:0 6px 18px rgba(60,80,220,.45), inset 0 1px 0 rgba(255,255,255,.25);
-    transition:transform .12s,filter .15s;
-  }
-  #btn-next:active{transform:scale(.96);}
-
-  /* ── 간식 사주기 (클리어 화면에 은은하게 — cube 패턴) ── */
-  #snack{margin-top:18px;font-size:12px;color:#9d93c2;}
-  #snack .snack-btns{display:block;margin-top:9px;}
-  #snack a{
-    display:inline-block;text-decoration:none;font-weight:700;font-size:12px;
-    padding:5px 12px;border-radius:999px;margin-left:4px;
-    opacity:.9;transition:opacity .15s,transform .15s;
-  }
-  #snack a:active{transform:scale(.94);}
-  #snack a.toss{background:#3182f6;color:#fff;}
-  #snack a.kakao{background:#fee500;color:#3c1e1e;}
+  #clear-record.show{display:inline-flex;align-items:center;gap:4px;animation:pop .5s ease;}
+  #clear-record .ki{width:13px;height:13px;}
+  #btn-next{margin-top:16px;}
 
   /* ── 레벨 선택 모달 ── */
   #levels{
@@ -220,7 +216,7 @@
     animation:pop-in .3s cubic-bezier(.2,1.2,.4,1);
     display:flex;flex-direction:column;gap:14px;text-align:left;
   }
-  .secret-card h2{font-family:'Fredoka',sans-serif;font-size:19px;color:#ffd6e8;text-align:center;}
+  .secret-card h2{font-family:'Fredoka',sans-serif;font-size:19px;color:#ffd6e8;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;}
   .secret-sec{display:flex;flex-direction:column;gap:7px;}
   .secret-label{font-size:12px;color:#9d93c2;font-family:'Fredoka',sans-serif;}
   .secret-card textarea{
@@ -247,33 +243,8 @@
     background:var(--glass);border:1px solid var(--glass-border);color:#c9bfe8;
   }
 
-  /* ── 고마워요 모달 (PC 딥링크 fallback) ── */
-  #thanks{
-    position:fixed;inset:0;z-index:90;
-    display:flex;align-items:center;justify-content:center;
-    background:rgba(8,6,20,.6);backdrop-filter:blur(5px);
-    animation:fadein .2s ease;
-  }
-  #thanks.hidden{display:none;}
   @keyframes fadein{from{opacity:0;}to{opacity:1;}}
-  .thanks-card{
-    background:#1d1738;border:1px solid var(--glass-border);
-    border-radius:26px;padding:30px 28px;max-width:330px;width:86%;text-align:center;
-    box-shadow:0 18px 50px rgba(0,0,0,.5);
-    animation:pop-in .3s cubic-bezier(.2,1.2,.4,1);
-  }
   @keyframes pop-in{from{transform:scale(.7);opacity:0;}to{transform:scale(1);opacity:1;}}
-  .thanks-emoji{font-size:52px;margin-bottom:8px;}
-  .thanks-card h2{font-family:'Fredoka',sans-serif;font-size:22px;color:#ffd6e8;margin-bottom:12px;}
-  .thanks-card p{font-size:15px;color:#c9bfe8;line-height:1.55;}
-  .thanks-card .thanks-sub{font-size:12px;color:#8d83b5;margin-top:12px;}
-  #thanks-close{
-    margin-top:20px;font-size:16px;font-weight:700;padding:12px 34px;font-family:'Fredoka',sans-serif;
-    border:none;border-radius:999px;cursor:pointer;
-    background:linear-gradient(135deg,#2bd9c0,#1aa6ff);color:#fff;
-    box-shadow:0 5px 16px rgba(40,170,220,.4);
-  }
-  #thanks-close:active{transform:scale(.95);}
 
   /* 가로모드(낮은 화면): 8열×2행으로 펼쳐서 잘림 방지 */
   @media (max-height:520px){
@@ -292,17 +263,23 @@
   <div class="glow b"></div>
 
   <div class="topbar">
-    <h1>물병 정렬</h1>
-    <button class="pill" id="level-btn" aria-label="레벨 선택"><span id="evo">💧</span> Lv <b id="level">1</b> ▾</button>
-    <div class="pill">⭐ <b id="total-stars">0</b></div>
-    <button class="btn btn-ghost" id="mute" aria-label="소리 켜기/끄기">🔊</button>
+    <h1><svg class="logo"><use href="#g-corked-tube"/></svg>물병 정렬</h1>
+    <button class="pill" id="level-btn" aria-label="레벨 선택">
+      <svg class="ki" id="evo-icon" style="fill:#6fc3ff"><use href="#g-drop"/></svg>
+      Lv <b id="level">1</b>
+      <svg class="ki" style="width:10px;height:10px;opacity:.6"><use href="#p-caret-down"/></svg>
+    </button>
+    <div class="pill"><svg class="k-star"><use href="#p-star"/></svg> <b id="total-stars">0</b></div>
+    <button class="k-btn k-slate sq" id="mute" aria-label="소리 켜기/끄기">
+      <svg class="ki-o" id="mute-icon"><use href="#p-speaker-high"/></svg>
+    </button>
   </div>
   <div class="topbar sub">
-    <div class="pill">이동 <b id="moves">0</b><span class="par">🎯 <b id="par">-</b></span></div>
+    <div class="pill">이동 <b id="moves">0</b><span class="par"><svg class="ki"><use href="#p-target"/></svg><b id="par">-</b></span></div>
     <div class="spacer"></div>
-    <button class="btn btn-undo" id="undo" aria-label="되돌리기">↩</button>
-    <button class="btn btn-hint" id="hint" aria-label="힌트">💡</button>
-    <button class="btn btn-new" id="new" aria-label="새 게임">🔄</button>
+    <button class="k-btn k-blue sq" id="undo" aria-label="되돌리기"><svg class="ki-o"><use href="#p-arrow-counter-clockwise"/></svg></button>
+    <button class="k-btn k-teal sq" id="hint" aria-label="힌트"><svg class="ki-o"><use href="#p-lightbulb"/></svg></button>
+    <button class="k-btn k-coral sq" id="new" aria-label="새 게임"><svg class="ki-o"><use href="#p-arrows-clockwise"/></svg></button>
   </div>
 
   <div id="board"></div>
@@ -312,18 +289,20 @@
   <!-- 클리어 오버레이: 버튼을 눌러야 다음 레벨 (간식 버튼이 머물 시간 확보) -->
   <div id="clear">
     <div class="clear-card">
-      <h2>🎉 레벨 <span id="clear-level">1</span> 클리어!</h2>
-      <div id="stars"><span class="star">⭐</span><span class="star">⭐</span><span class="star">⭐</span></div>
-      <div id="clear-stats">⏱ <b id="clear-time">0초</b> · 이동 <b id="clear-moves">0</b> · 🎯 <span id="clear-par">0</span></div>
-      <span id="clear-record">🏆 신기록!</span>
-      <button id="btn-next">다음 레벨 →</button>
-      <div id="snack">
-        <span class="snack-label">재밌었다면 개발자 간식 사주기</span> 🍩
-        <span class="snack-btns">
-          <a class="toss" href="supertoss://send?bank=토스뱅크&accountNo=100025266940&amount=3000">토스</a>
-          <a class="kakao" href="https://qr.kakaopay.com/FP0dZW9ip" target="_blank" rel="noopener">카카오페이</a>
-        </span>
+      <h2>레벨 <span id="clear-level">1</span> 클리어!</h2>
+      <div id="stars">
+        <svg class="k-star"><use href="#p-star"/></svg>
+        <svg class="k-star"><use href="#p-star"/></svg>
+        <svg class="k-star"><use href="#p-star"/></svg>
       </div>
+      <div id="clear-stats">
+        <svg class="ki"><use href="#p-timer"/></svg><b id="clear-time">0초</b>
+        <span>· 이동 <b id="clear-moves">0</b> ·</span>
+        <svg class="ki"><use href="#p-target"/></svg><span id="clear-par">0</span>
+      </div>
+      <span id="clear-record"><svg class="ki"><use href="#p-trophy"/></svg>신기록!</span>
+      <button id="btn-next" class="k-btn k-violet lg">다음 레벨 <svg class="ki-o" style="width:20px;height:20px"><use href="#p-arrow-right"/></svg></button>
+      <div id="snack-mount"></div>
     </div>
   </div>
 
@@ -332,18 +311,19 @@
     <div class="levels-card">
       <h2>레벨 선택</h2>
       <div id="evo-box">
-        <span id="evo-emoji">💧</span>
+        <svg class="ki" id="evo-emoji" style="width:40px;height:40px;flex:0 0 auto;fill:#6fc3ff"><use href="#g-drop"/></svg>
         <div id="evo-text"></div>
       </div>
       <div id="level-grid"></div>
       <button id="levels-close">닫기</button>
+      <div class="k-credit">Icons: <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (CC BY 3.0) · Phosphor</div>
     </div>
   </div>
 
   <!-- 비밀 작업실 (타이틀 5연타로 열림): 진행 옮기기 + 레벨 점프 -->
   <div id="secret" class="hidden">
     <div class="secret-card">
-      <h2>🔧 비밀 작업실</h2>
+      <h2><svg class="ki" style="width:17px;height:17px;opacity:.85"><use href="#p-wrench"/></svg> 비밀 작업실</h2>
       <div class="secret-sec">
         <div class="secret-label">내 진행 내보내기</div>
         <textarea id="exp-code" readonly placeholder="[코드 만들기]를 누르면 여기 코드가 나와요"></textarea>
@@ -368,19 +348,17 @@
     </div>
   </div>
 
-  <!-- PC에서 앱 딥링크가 안 열릴 때 띄우는 "마음만으로도 고마워요" 모달 -->
-  <div id="thanks" class="hidden">
-    <div class="thanks-card">
-      <div class="thanks-emoji">🥹🧃</div>
-      <h2>마음만으로도 감동이에요!</h2>
-      <p>송금은 폰에서 열어야 동작하지만,<br>여기까지 눌러주신 것만으로도<br>개발자는 이미 주스 한 잔 마신 기분이에요 💜</p>
-      <p class="thanks-sub">정 보내고 싶다면 폰으로 접속해서 눌러주세요!</p>
-      <button id="thanks-close">고마워요 😊</button>
-    </div>
-  </div>
-
+<script>
+  // 아이콘 심볼 시트 주입 — <use href="#..."> 해석용 (game-kit sprite 서브셋)
+  fetch('sprite.svg').then((r) => r.text()).then((t) => {
+    const d = document.createElement('div');
+    d.innerHTML = t;
+    document.body.prepend(d.firstChild);
+  });
+</script>
 <script src="core.js"></script>
 <script src="audio.js"></script>
+<script src="snack.js"></script>
 <script src="game.js"></script>
 <script>
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
