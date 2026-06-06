@@ -8,7 +8,7 @@
 
   // 8색 고정: 파랑, 빨강, 보라, 노랑, 초록, 검정, 흰색, 주황
   const COLORS = ['#3b82f6', '#ef4444', '#8b5cf6', '#facc15', '#22c55e', '#2e3440', '#eef2f7', '#f97316'];
-  const NUM_COLORS = 8, EMPTIES = 4, TOTAL_TUBES = NUM_COLORS + EMPTIES;
+  const NUM_COLORS = 8; // 병 수는 레벨 난이도에 따라 core의 levelSizes가 정한다
 
   // 레벨마다 도는 배경 테마 (액체가 돋보이게 전부 어두운 톤)
   const THEMES = [
@@ -81,7 +81,7 @@
     const bw = board.clientWidth, bh = board.clientHeight;
     if (!bw || !bh) return;
     const cols = getComputedStyle(board).gridTemplateColumns.split(' ').length || 4;
-    const rows = Math.ceil(TOTAL_TUBES / cols);
+    const rows = Math.ceil((tubes.length || 12) / cols);
     const gap = 12;
     const w = Math.max(28, Math.min(52,
       (bw - gap * (cols - 1) - 8) / cols,
@@ -95,7 +95,7 @@
     moves = 0; selected = null; history = []; busy = false; pour = null;
     clearEl.classList.remove('show');
     applyTheme(lv);
-    const gen = C.generateSolvableBoard(NUM_COLORS, EMPTIES, { nodeBudget: 80000 });
+    const gen = C.generateLevel(level, NUM_COLORS, { nodeBudget: 80000 });
     tubes = gen.tubes;
     par = gen.par;
     fillAmt = tubes.map((t) => t.length);
@@ -128,7 +128,12 @@
       const el = document.createElement('div');
       el.className = 'tube';
       if (idx === selected) el.classList.add('selected');
-      if (C.isComplete(tube)) el.classList.add('complete');
+      if (C.isComplete(tube)) {
+        el.classList.add('complete');
+        const cork = document.createElement('div'); // 완성된 병은 마개로 봉인
+        cork.className = 'cork';
+        el.appendChild(cork);
+      }
       const cv = document.createElement('canvas');
       cv.className = 'liq';
       el.appendChild(cv);
@@ -246,6 +251,7 @@
     A.init();
     if (selected === null) {
       if (!tubes[idx].length) return;
+      if (C.isComplete(tubes[idx])) return; // 마개로 닫힌 병은 선택 불가
       selected = idx;
       A.select(); vibrate(8);
       render(); return;

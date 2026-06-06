@@ -40,7 +40,8 @@ const VaseCore = (() => {
   const isWin = (tubes) => tubes.every((t) => t.length === 0 || isComplete(t));
 
   // ── 판 생성 ──
-  function generateBoard(numColors, empties, rng) {
+  // sizes: 병별 유닛 수 배열 (0 = 빈 병). 합은 numColors*CAP 이어야 한다.
+  function generateBoard(numColors, sizes, rng) {
     rng = rng || Math.random;
     const pool = [];
     for (let c = 0; c < numColors; c++) for (let i = 0; i < CAP; i++) pool.push(c);
@@ -49,9 +50,43 @@ const VaseCore = (() => {
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
     const tubes = [];
-    for (let t = 0; t < numColors; t++) tubes.push(pool.slice(t * CAP, t * CAP + CAP));
-    for (let e = 0; e < empties; e++) tubes.push([]);
+    let p = 0;
+    for (const s of sizes) { tubes.push(pool.slice(p, p + s)); p += s; }
     return tubes;
+  }
+
+  // 고전 구성: 꽉 찬 병 numColors개 + 빈 병 empties개
+  function sizesFor(numColors, empties) {
+    const sizes = Array(numColors).fill(CAP);
+    for (let e = 0; e < empties; e++) sizes.push(0);
+    return sizes;
+  }
+
+  // ── 난이도 곡선 ──
+  // 레벨이 오를수록 빈 병이 줄고, 고레벨(11+)은 빈 병 0개 —
+  // 대신 "꽉 차지 않은 병"의 수(=여유 공간)로 난이도를 조절한다.
+  // N = 물이 든 병 수, E = 빈 병 수. 여유 공간 = N*CAP - 32 + E*CAP
+  function levelSizes(level, numColors, rng) {
+    rng = rng || Math.random;
+    const U = numColors * CAP;
+    let N, E;
+    if (level <= 2)       { N = numColors;     E = 4; } // 입문: 빈 병 4
+    else if (level <= 4)  { N = numColors;     E = 3; }
+    else if (level <= 6)  { N = numColors;     E = 2; }
+    else if (level <= 8)  { N = numColors + 2; E = 1; } // 부분 충전 병 등장
+    else if (level <= 10) { N = numColors + 1; E = 1; }
+    else if (level <= 12) { N = numColors + 4; E = 0; } // 빈 병 제로
+    else if (level <= 14) { N = numColors + 3; E = 0; }
+    else if (level <= 16) { N = numColors + 2; E = 0; }
+    else                  { N = numColors + 1; E = 0; } // 최고 난이도: 여유 4칸
+    const sizes = Array(N).fill(CAP);
+    let shed = CAP * N - U; // 덜어낼 유닛 수 → 부분 충전 병이 생긴다
+    while (shed > 0) {
+      const i = (rng() * N) | 0;
+      if (sizes[i] > 1) { sizes[i]--; shed--; }
+    }
+    for (let e = 0; e < E; e++) sizes.push(0);
+    return sizes;
   }
 
   // ── 솔버 (그리디 정렬 DFS + 정규화 방문 집합, 노드 예산 한정) ──
@@ -131,32 +166,54 @@ const VaseCore = (() => {
     return seg;
   }
 
-  // 풀 수 있는 판 + par(별점 기준) 생성. 솔버가 예산 안에 못 풀면 다시 섞는다.
-  // 모든 시도가 실패하면(매우 드묾) 마지막 판을 하한 기반 par로 그냥 쓴다.
+  // 주어진 sizes로 풀 수 있는 판을 찾는다 (성공 시 par = 최단 발견 풀이 길이)
+  function trySolvable(numColors, sizes, rng, nodeBudget, restarts) {
+    const tubes = generateBoard(numColors, sizes, rng);
+    const r = solve(tubes, nodeBudget);
+    if (!r.solved) return null;
+    let best = r.moves;
+    for (let k = 1; k < restarts; k++) {
+      // 랜덤 재시작으로 더 짧은 풀이를 찾아 par를 타이트하게
+      const r2 = solve(tubes, nodeBudget, rng);
+      if (r2.solved && r2.moves.length < best.length) best = r2.moves;
+    }
+    return { tubes, par: best.length, solverMoves: best };
+  }
+
+  // 풀 수 있는 판 + par(별점 기준) 생성 (고전 구성: 꽉 찬 병 + 빈 병)
   function generateSolvableBoard(numColors, empties, opts) {
     opts = opts || {};
     const rng = opts.rng || Math.random;
     const maxTries = opts.maxTries || 12;
     const nodeBudget = opts.nodeBudget || 80000;
     const restarts = opts.restarts || 4;
-    let last = null;
     for (let i = 0; i < maxTries; i++) {
-      const tubes = generateBoard(numColors, empties, rng);
-      const r = solve(tubes, nodeBudget);
-      if (r.solved) {
-        // 랜덤 재시작으로 더 짧은 풀이를 찾아 par를 타이트하게
-        let best = r.moves;
-        for (let k = 1; k < restarts; k++) {
-          const r2 = solve(tubes, nodeBudget, rng);
-          if (r2.solved && r2.moves.length < best.length) best = r2.moves;
-        }
-        return { tubes, par: best.length, solverMoves: best };
-      }
-      last = tubes;
+      const found = trySolvable(numColors, sizesFor(numColors, empties), rng, nodeBudget, restarts);
+      if (found) return found;
     }
-    const numCol = numColors;
-    const fallbackPar = Math.ceil((countSegments(last) - numCol) * 1.8);
-    return { tubes: last, par: Math.max(fallbackPar, numCol), solverMoves: null };
+    // 도달 거의 불가: 빈 병 하나 더 주고 재시도
+    return generateSolvableBoard(numColors, empties + 1, opts);
+  }
+
+  // 레벨 난이도 곡선을 적용한 판 생성.
+  // 타이트한 구성(여유 4칸)은 랜덤 셔플이 못 푸는 판일 수 있으므로
+  // 여러 번 다시 섞고, 그래도 안 되면 빈 병을 하나씩 추가해 완화한다.
+  function generateLevel(level, numColors, opts) {
+    opts = opts || {};
+    const rng = opts.rng || Math.random;
+    const maxTries = opts.maxTries || 24;
+    const nodeBudget = opts.nodeBudget || 80000;
+    const restarts = opts.restarts || 4;
+    for (let relax = 0; relax <= 2; relax++) {
+      for (let t = 0; t < maxTries; t++) {
+        const sizes = levelSizes(level, numColors, rng);
+        for (let e = 0; e < relax; e++) sizes.push(0);
+        const found = trySolvable(numColors, sizes, rng, nodeBudget, restarts);
+        if (found) return found;
+      }
+    }
+    // 최후의 안전망: 고전 구성
+    return generateSolvableBoard(numColors, 4, opts);
   }
 
   // ── 별점 ──
@@ -169,7 +226,8 @@ const VaseCore = (() => {
 
   return {
     CAP, topColor, topCount, canPour, pourAmount, applyPour,
-    isComplete, isWin, generateBoard, generateSolvableBoard,
+    isComplete, isWin, generateBoard, sizesFor, levelSizes,
+    generateSolvableBoard, generateLevel,
     solve, legalMoves, canon, countSegments, starsFor,
   };
 })();

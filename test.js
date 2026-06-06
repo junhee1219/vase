@@ -104,6 +104,45 @@ console.log('• 생성 속도');
   ok(ms / 10 < 1500, '판당 평균 1.5초 미만');
 }
 
+// ── 난이도 곡선: 레벨↑ → 빈 병↓, 고레벨은 빈 병 0 + 부분 충전 병 ──
+console.log('• 난이도 곡선 (levelSizes)');
+{
+  const rng = lcg(777);
+  for (let lv = 1; lv <= 30; lv++) {
+    const sizes = C.levelSizes(lv, 8, rng);
+    const sum = sizes.reduce((a, b) => a + b, 0);
+    ok(sum === 32, `lv${lv}: 유닛 합 32 (실제 ${sum})`);
+    ok(sizes.every((s) => s >= 0 && s <= C.CAP), `lv${lv}: 병 크기 0~CAP`);
+  }
+  const empt = (lv) => C.levelSizes(lv, 8, rng).filter((s) => s === 0).length;
+  ok(empt(1) === 4, 'lv1: 빈 병 4');
+  ok(empt(5) === 2, 'lv5: 빈 병 2');
+  ok(empt(9) === 1, 'lv9: 빈 병 1');
+  ok(empt(11) === 0, 'lv11: 빈 병 0');
+  ok(empt(20) === 0, 'lv20: 빈 병 0');
+  // 고레벨일수록 전체 여유 공간(빈 칸)이 줄어든다
+  const slack = (lv) => C.levelSizes(lv, 8, rng).length * C.CAP - 32;
+  ok(slack(1) === 16 && slack(9) === 8 && slack(17) === 4, '여유 공간 16→8→4 감소');
+}
+
+// ── 레벨 생성: 전 난이도 밴드에서 풀이 보장 ──
+console.log('• 레벨 생성 풀이 보장 (lv 1/7/11/17/25 × 6판)');
+{
+  const rng = lcg(99);
+  for (const lv of [1, 7, 11, 17, 25]) {
+    for (let i = 0; i < 6; i++) {
+      const { tubes, par, solverMoves } = C.generateLevel(lv, 8, { rng });
+      ok(!!solverMoves, `lv${lv}: 풀이 존재`);
+      let st = tubes;
+      for (const [f, t] of solverMoves) {
+        if (!C.canPour(st, f, t)) { ok(false, `lv${lv}: 풀이 재생 중 무효한 수`); break; }
+        st = C.applyPour(st, f, t);
+      }
+      ok(C.isWin(st), `lv${lv}: 풀이 재생 → 승리 (par ${par}, 병 ${tubes.length}개)`);
+    }
+  }
+}
+
 // ── 별점 ──
 console.log('• 별점');
 {
