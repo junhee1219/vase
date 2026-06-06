@@ -205,6 +205,48 @@
   }
   #levels-close:active{transform:scale(.96);}
 
+  /* ── 비밀 작업실 (타이틀 5연타) ── */
+  #secret{
+    position:fixed;inset:0;z-index:85;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(8,6,20,.65);backdrop-filter:blur(5px);
+    animation:fadein .2s ease;
+  }
+  #secret.hidden{display:none;}
+  .secret-card{
+    background:#1d1738;border:1px solid var(--glass-border);
+    border-radius:26px;padding:22px 20px;width:min(340px,90vw);max-height:84dvh;overflow-y:auto;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);
+    animation:pop-in .3s cubic-bezier(.2,1.2,.4,1);
+    display:flex;flex-direction:column;gap:14px;text-align:left;
+  }
+  .secret-card h2{font-family:'Fredoka',sans-serif;font-size:19px;color:#ffd6e8;text-align:center;}
+  .secret-sec{display:flex;flex-direction:column;gap:7px;}
+  .secret-label{font-size:12px;color:#9d93c2;font-family:'Fredoka',sans-serif;}
+  .secret-card textarea{
+    width:100%;height:54px;resize:none;border-radius:12px;padding:9px 11px;
+    background:var(--glass);border:1px solid var(--glass-border);color:#f1edff;
+    font-size:11px;font-family:monospace;word-break:break-all;
+  }
+  .secret-card textarea:focus{outline:1px solid #6e9fff;}
+  .secret-row{display:flex;gap:8px;}
+  .secret-row input{
+    flex:1;min-width:0;border-radius:12px;padding:9px 11px;font-size:14px;
+    background:var(--glass);border:1px solid var(--glass-border);color:#f1edff;
+  }
+  .secret-btn{
+    flex:1;border:none;border-radius:12px;padding:10px 0;cursor:pointer;
+    font-family:'Fredoka',sans-serif;font-size:13px;font-weight:600;color:#fff;
+    background:linear-gradient(135deg,#5b8def,#7c5bef);
+  }
+  .secret-btn.wide{width:100%;}
+  .secret-btn:active{transform:scale(.96);}
+  #secret-close{
+    font-size:14px;font-weight:700;padding:11px 0;font-family:'Fredoka',sans-serif;
+    border:none;border-radius:999px;cursor:pointer;
+    background:var(--glass);border:1px solid var(--glass-border);color:#c9bfe8;
+  }
+
   /* ── 고마워요 모달 (PC 딥링크 fallback) ── */
   #thanks{
     position:fixed;inset:0;z-index:90;
@@ -295,6 +337,34 @@
       </div>
       <div id="level-grid"></div>
       <button id="levels-close">닫기</button>
+    </div>
+  </div>
+
+  <!-- 비밀 작업실 (타이틀 5연타로 열림): 진행 옮기기 + 레벨 점프 -->
+  <div id="secret" class="hidden">
+    <div class="secret-card">
+      <h2>🔧 비밀 작업실</h2>
+      <div class="secret-sec">
+        <div class="secret-label">내 진행 내보내기</div>
+        <textarea id="exp-code" readonly placeholder="[코드 만들기]를 누르면 여기 코드가 나와요"></textarea>
+        <div class="secret-row">
+          <button class="secret-btn" id="btn-export">코드 만들기</button>
+          <button class="secret-btn" id="btn-copy">복사</button>
+        </div>
+      </div>
+      <div class="secret-sec">
+        <div class="secret-label">진행 가져오기</div>
+        <textarea id="imp-code" placeholder="다른 기기에서 만든 코드를 붙여넣기"></textarea>
+        <button class="secret-btn wide" id="btn-import">가져오기</button>
+      </div>
+      <div class="secret-sec">
+        <div class="secret-label">레벨 점프</div>
+        <div class="secret-row">
+          <input type="number" id="jump-lv" min="1" max="999" placeholder="레벨">
+          <button class="secret-btn" id="btn-jump">이동</button>
+        </div>
+      </div>
+      <button id="secret-close">닫기</button>
     </div>
   </div>
 

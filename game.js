@@ -449,6 +449,79 @@
   document.getElementById('levels-close').addEventListener('click', closeLevels);
   levelsModal.addEventListener('click', (e) => { if (e.target === levelsModal) closeLevels(); });
 
+  // ── 비밀 작업실: 타이틀 5연타로 열림 (진행 내보내기/가져오기 + 레벨 점프) ──
+  const SAVE_KEYS = ['vaseLevel', 'vaseMaxClear', 'vaseStars', 'vaseBest', 'vaseMuted'];
+  const secretModal = document.getElementById('secret');
+  function checksum(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  }
+  function exportCode() {
+    const data = {};
+    for (const k of SAVE_KEYS) {
+      const v = localStorage.getItem(k);
+      if (v !== null) data[k] = v;
+    }
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    return 'VASE1.' + b64 + '.' + checksum(b64);
+  }
+  function importCode(code) {
+    const m = String(code).trim().match(/^VASE1\.([A-Za-z0-9+/=]+)\.([a-z0-9]+)$/);
+    if (!m || checksum(m[1]) !== m[2]) return false;
+    let data;
+    try { data = JSON.parse(decodeURIComponent(escape(atob(m[1])))); } catch (e) { return false; }
+    if (!data || typeof data !== 'object') return false;
+    for (const k of SAVE_KEYS) if (data[k] !== undefined) localStorage.setItem(k, String(data[k]));
+    return true;
+  }
+  let titleTaps = [];
+  document.querySelector('h1').addEventListener('pointerdown', () => {
+    const now = Date.now();
+    titleTaps = titleTaps.filter((t) => now - t < 1600);
+    titleTaps.push(now);
+    if (titleTaps.length >= 5) {
+      titleTaps = [];
+      A.init(); A.tubeDone(); vibrate([20, 30, 20]);
+      document.getElementById('exp-code').value = '';
+      document.getElementById('imp-code').value = '';
+      secretModal.classList.remove('hidden');
+    }
+  });
+  document.getElementById('btn-export').addEventListener('click', () => {
+    document.getElementById('exp-code').value = exportCode();
+    A.uiClick();
+  });
+  document.getElementById('btn-copy').addEventListener('click', async () => {
+    const ta = document.getElementById('exp-code');
+    if (!ta.value) ta.value = exportCode();
+    try {
+      await navigator.clipboard.writeText(ta.value);
+      toast('복사 완료! 다른 기기에서 붙여넣으세요');
+    } catch (e) {
+      ta.focus(); ta.select(); // 클립보드 권한이 없으면 직접 복사하게 선택만
+      toast('길게 눌러 복사하세요');
+    }
+    A.uiClick();
+  });
+  document.getElementById('btn-import').addEventListener('click', () => {
+    const ok = importCode(document.getElementById('imp-code').value);
+    if (!ok) { toast('코드가 올바르지 않아요 🤔'); A.bad(); return; }
+    A.tubeDone();
+    toast('가져오기 완료! 잠시만요…');
+    setTimeout(() => location.reload(), 700); // 저장값 기준으로 깔끔하게 재시작
+  });
+  document.getElementById('btn-jump').addEventListener('click', () => {
+    const lv = parseInt(document.getElementById('jump-lv').value, 10);
+    if (!Number.isFinite(lv) || lv < 1 || lv > 999) { toast('1~999 레벨로만 점프할 수 있어요'); A.bad(); return; }
+    secretModal.classList.add('hidden');
+    A.uiClick();
+    newGame(lv);
+    toast(`Lv${lv}로 점프! 🚀`);
+  });
+  document.getElementById('secret-close').addEventListener('click', () => secretModal.classList.add('hidden'));
+  secretModal.addEventListener('click', (e) => { if (e.target === secretModal) secretModal.classList.add('hidden'); });
+
   // ── 간식 딥링크: PC에선 앱 스킴이 안 열리므로 "고마워요" 모달로 대체 ──
   const isMobile = () => /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
   const thanksModal = document.getElementById('thanks');
