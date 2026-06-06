@@ -372,6 +372,15 @@
 <script src="game.js"></script>
 <script>
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    // 배포 직후 기존 유저가 구버전+신버전이 섞인 채 2~3번 접속해야 했던 문제:
+    // 새 SW가 컨트롤을 잡으면(업데이트) 시작 10초 이내일 때만 한 번 자동 새로고침
+    const hadController = !!navigator.serviceWorker.controller;
+    let refreshed = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || refreshed || performance.now() > 10000) return;
+      refreshed = true;
+      location.reload();
+    });
     navigator.serviceWorker.register('./sw.js');
   }
 </script>
