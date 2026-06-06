@@ -6,10 +6,30 @@
   const A = VaseAudio;
   const CAP = C.CAP;
 
-  // 작은 화면에서도 서로 헷갈리지 않게 고른 12색
-  const COLORS = ['#ef4444', '#3b82f6', '#facc15', '#16a34a', '#f97316', '#8b5cf6',
-    '#22d3ee', '#f472b6', '#92623a', '#a3e635', '#e5e7eb', '#475569'];
-  const NUM_COLORS = 12, EMPTIES = 4, TOTAL_TUBES = NUM_COLORS + EMPTIES;
+  // 8색 고정: 파랑, 빨강, 보라, 노랑, 초록, 검정, 흰색, 주황
+  const COLORS = ['#3b82f6', '#ef4444', '#8b5cf6', '#facc15', '#22c55e', '#2e3440', '#eef2f7', '#f97316'];
+  const NUM_COLORS = 8, EMPTIES = 4, TOTAL_TUBES = NUM_COLORS + EMPTIES;
+
+  // 레벨마다 도는 배경 테마 (액체가 돋보이게 전부 어두운 톤)
+  const THEMES = [
+    { bg1: '#2a2350', bg2: '#16414d', base: '#14112b', deep: '#0a0817', ga: '#ff5e9c', gb: '#2bd9ff' }, // 보라밤
+    { bg1: '#0f2d5c', bg2: '#123b46', base: '#0c1530', deep: '#060a1c', ga: '#4d9fff', gb: '#7affd4' }, // 딥블루
+    { bg1: '#143c38', bg2: '#1c2f55', base: '#0e2420', deep: '#071512', ga: '#3dffc8', gb: '#5e8bff' }, // 청록
+    { bg1: '#4a1635', bg2: '#2c1450', base: '#260b22', deep: '#120514', ga: '#ff6b9d', gb: '#b06bff' }, // 와인
+    { bg1: '#1d3a14', bg2: '#14444d', base: '#12240e', deep: '#091406', ga: '#a8ff7d', gb: '#36d9b0' }, // 딥그린
+    { bg1: '#4d2a12', bg2: '#3a1644', base: '#241108', deep: '#140906', ga: '#ffb45e', gb: '#ff5e9c' }, // 선셋
+    { bg1: '#1c2433', bg2: '#3d3414', base: '#11161f', deep: '#080b12', ga: '#ffd66b', gb: '#6b9fff' }, // 네이비골드
+    { bg1: '#0e3a44', bg2: '#2a1650', base: '#0a2229', deep: '#051114', ga: '#2bd9ff', gb: '#c46bff' }, // 다크시안
+  ];
+  function applyTheme(lv) {
+    const t = THEMES[(lv - 1) % THEMES.length];
+    const s = document.documentElement.style;
+    s.setProperty('--bg1', t.bg1); s.setProperty('--bg2', t.bg2);
+    s.setProperty('--base', t.base); s.setProperty('--deep', t.deep);
+    s.setProperty('--glowa', t.ga); s.setProperty('--glowb', t.gb);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = t.base;
+  }
 
   // ── 상태 ──
   let tubes = [], selected = null, moves = 0, level = 1, history = [], busy = false;
@@ -74,6 +94,7 @@
     level = lv;
     moves = 0; selected = null; history = []; busy = false; pour = null;
     clearEl.classList.remove('show');
+    applyTheme(lv);
     const gen = C.generateSolvableBoard(NUM_COLORS, EMPTIES, { nodeBudget: 80000 });
     tubes = gen.tubes;
     par = gen.par;
@@ -138,53 +159,46 @@
     ctx.clearRect(0, 0, W, H);
     const tube = tubes[idx];
     const amt = fillAmt[idx];
-    let incomingColor = null;
-    if (pour && pour.to === idx) incomingColor = pour.color;
+    const incomingIdx = (pour && pour.to === idx) ? pour.colorIdx : null;
     if (amt <= 0.001 && tube.length === 0) { bubbles[idx].length = 0; return; }
 
     const unitH = H / CAP;
-    let y = H, remain = amt;
+    // 같은 색 연속 칸은 경계 없는 한 덩어리(run)로 합쳐 그린다
+    const runs = [];
+    let remain = amt;
     for (let i = 0; i < tube.length && remain > 0.001; i++) {
-      const segUnits = Math.min(1, remain);
-      const segH = segUnits * unitH;
+      const u = Math.min(1, remain);
+      const c = tube[i];
+      if (runs.length && runs[runs.length - 1].c === c) runs[runs.length - 1].u += u;
+      else runs.push({ c, u });
+      remain -= u;
+    }
+    // 붓는 중 받는 병: 들어오는 색을 위에 미리 채움 (같은 색이면 윗 덩어리에 합침)
+    if (remain > 0.001 && incomingIdx !== null) {
+      if (runs.length && runs[runs.length - 1].c === incomingIdx) runs[runs.length - 1].u += remain;
+      else runs.push({ c: incomingIdx, u: remain });
+      remain = 0;
+    }
+    let y = H;
+    runs.forEach((r, i) => {
+      const segH = r.u * unitH;
       const top = y - segH;
-      const c = COLORS[tube[i]];
+      const c = COLORS[r.c];
       const grad = ctx.createLinearGradient(0, top, 0, y);
       grad.addColorStop(0, shade(c, 1.14));
       grad.addColorStop(1, shade(c, 0.8));
       ctx.fillStyle = grad;
       ctx.fillRect(0, top, W, segH + 0.5);
-      // 세그먼트 경계선 살짝
+      // 색이 바뀌는 지점에만 경계선 살짝
       if (i > 0) { ctx.globalAlpha = 0.25; ctx.fillStyle = shade(c, 0.55); ctx.fillRect(0, y - 0.8, W, 1); ctx.globalAlpha = 1; }
-      y = top; remain -= segUnits;
-    }
-    // 붓는 중 받는 병: 들어오는 색을 위에 미리 채움
-    if (remain > 0.001 && incomingColor) {
-      const segH = remain * unitH;
-      const top = y - segH;
-      const grad = ctx.createLinearGradient(0, top, 0, y);
-      grad.addColorStop(0, shade(incomingColor, 1.14));
-      grad.addColorStop(1, shade(incomingColor, 0.85));
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, top, W, segH + 0.5);
-      y = top; remain = 0;
-    }
+      y = top;
+    });
 
     // 수면: 사인 웨이브 + 하이라이트
     const surfaceY = H - amt * unitH;
     const w = wave[idx];
-    if (amt > 0.02) {
-      const realAmt = tube.length;
-      const topColIdx = (() => {
-        if (incomingColor && amt > realAmt - 0.001) {
-          const k = COLORS.indexOf(incomingColor);
-          return k >= 0 ? k : (tube.length ? tube[tube.length - 1] : 0);
-        }
-        let r2 = amt;
-        for (let i = 0; i < tube.length; i++) { r2 -= 1; if (r2 <= 0) return tube[i]; }
-        return tube.length ? tube[tube.length - 1] : 0;
-      })();
-      const sc = COLORS[topColIdx];
+    if (amt > 0.02 && runs.length) {
+      const sc = COLORS[runs[runs.length - 1].c];
       ctx.fillStyle = shade(sc, 1.05);
       ctx.beginPath();
       ctx.moveTo(0, surfaceY + 4);
@@ -270,7 +284,7 @@
     fromEl.style.transform = `translate(${targetX}px,${targetY}px) rotate(${tilt}deg)`;
 
     pour = {
-      from, to, units: n, color,
+      from, to, units: n, color, colorIdx: C.topColor(a),
       tiltDelay: 400, dur: 140 * n + 220, elapsed: 0, streaming: false,
       spoutX: targetCenterX,
       srcStart: fillAmt[from], dstStart: fillAmt[to],

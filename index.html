@@ -33,9 +33,9 @@
     font-family:'Gowun Dodum',sans-serif;
     height:100vh;height:100dvh;width:100vw;overflow:hidden;
     background:
-      radial-gradient(circle at 15% 0%, #2a2350 0%, transparent 45%),
-      radial-gradient(circle at 85% 100%, #16414d 0%, transparent 50%),
-      linear-gradient(160deg, #14112b 0%, #0a0817 70%);
+      radial-gradient(circle at 15% 0%, var(--bg1,#2a2350) 0%, transparent 45%),
+      radial-gradient(circle at 85% 100%, var(--bg2,#16414d) 0%, transparent 50%),
+      linear-gradient(160deg, var(--base,#14112b) 0%, var(--deep,#0a0817) 70%);
     color:#f1edff;display:flex;flex-direction:column;align-items:center;
     padding:calc(8px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
     position:relative;
@@ -43,8 +43,8 @@
     overscroll-behavior:none;
   }
   .glow{position:fixed;border-radius:50%;filter:blur(120px);opacity:.3;z-index:0;pointer-events:none;}
-  .glow.a{width:340px;height:340px;background:#ff5e9c;top:-110px;left:-80px;}
-  .glow.b{width:320px;height:320px;background:#2bd9ff;bottom:-90px;right:-70px;}
+  .glow.a{width:340px;height:340px;background:var(--glowa,#ff5e9c);top:-110px;left:-80px;}
+  .glow.b{width:320px;height:320px;background:var(--glowb,#2bd9ff);bottom:-90px;right:-70px;}
 
   /* ── 상단 바 ── */
   .topbar{display:flex;align-items:center;gap:8px;z-index:2;width:100%;max-width:560px;flex:0 0 auto;}

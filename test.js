@@ -71,13 +71,13 @@ console.log('• 솔버 (불가능한 판)');
   ok(!r.exhausted, '예산 고갈이 아니라 탐색 완료로 끝남');
 }
 
-// ── 생성기: 본게임 규격(12색 16병) 풀이 보장 ──
-console.log('• 생성기 풀이 보장 (12색+4빈병 × 30판)');
+// ── 생성기: 본게임 규격(8색 12병) 풀이 보장 ──
+console.log('• 생성기 풀이 보장 (8색+4빈병 × 30판)');
 {
   const rng = lcg(20260606);
   let solvedAll = true, parMin = Infinity, parMax = 0, nodesMax = 0;
   for (let i = 0; i < 30; i++) {
-    const { tubes, par, solverMoves } = C.generateSolvableBoard(12, 4, { rng, nodeBudget: 80000 });
+    const { tubes, par, solverMoves } = C.generateSolvableBoard(8, 4, { rng, nodeBudget: 80000 });
     if (!solverMoves) { solvedAll = false; continue; }
     // 풀이 재생 검증
     let st = tubes;
@@ -87,7 +87,7 @@ console.log('• 생성기 풀이 보장 (12색+4빈병 × 30판)');
     }
     if (!C.isWin(st)) solvedAll = false;
     parMin = Math.min(parMin, par); parMax = Math.max(parMax, par);
-    ok(par >= C.countSegments(tubes) - 12, `par(${par})는 이론 하한 이상`);
+    ok(par >= C.countSegments(tubes) - 8, `par(${par})는 이론 하한 이상`);
   }
   ok(solvedAll, '30판 모두 풀이 보장 + 재생 검증');
   console.log(`  par 범위: ${parMin}~${parMax}`);
@@ -98,7 +98,7 @@ console.log('• 생성 속도');
 {
   const rng = lcg(42);
   const t0 = Date.now();
-  for (let i = 0; i < 10; i++) C.generateSolvableBoard(12, 4, { rng });
+  for (let i = 0; i < 10; i++) C.generateSolvableBoard(8, 4, { rng });
   const ms = Date.now() - t0;
   console.log(`  10판 생성+검증: ${ms}ms (판당 ${(ms / 10).toFixed(0)}ms)`);
   ok(ms / 10 < 1500, '판당 평균 1.5초 미만');
