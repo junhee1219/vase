@@ -7,8 +7,23 @@
   const CAP = C.CAP;
 
   // 8색 고정: 파랑, 빨강, 보라, 노랑, 초록, 검정, 흰색, 주황
-  const COLORS = ['#3b82f6', '#ef4444', '#8b5cf6', '#facc15', '#22c55e', '#2e3440', '#eef2f7', '#f97316'];
-  const NUM_COLORS = 8; // 병 수는 레벨 난이도에 따라 core의 levelSizes가 정한다
+  const COLORS = ['#3b82f6', '#ef4444', '#8b5cf6', '#facc15', '#22c55e', '#3d4654', '#eef2f7', '#f97316'];
+  // 어두운 색(검정)은 그라데이션 대비를 키워 빈 병과 확실히 구분되게
+  const SHADE_HI = { 5: 1.65 }, SHADE_LO = { 5: 1.0 };
+  const NUM_COLORS = 8; // 병 수는 레벨 난이도에 따라 core의 levelConfig가 정한다
+
+  // 최고 도달 레벨에 따라 진화하는 물친구 💧→🐉
+  const EVOS = [[1, '💧'], [5, '🫧'], [10, '🐠'], [15, '🐙'], [20, '🐬'], [25, '🦈'], [30, '🐳'], [40, '🐉']];
+  const getMaxClear = () => parseInt(localStorage.getItem('vaseMaxClear') || '0', 10) || 0;
+  function evoFor(maxClear) {
+    let e = EVOS[0][1];
+    for (const [lv, em] of EVOS) if (maxClear + 1 >= lv) e = em;
+    return e;
+  }
+  function nextEvo(maxClear) {
+    for (const [lv, em] of EVOS) if (maxClear + 1 < lv) return [lv, em];
+    return null;
+  }
 
   // 레벨마다 도는 배경 테마 (액체가 돋보이게 전부 어두운 톤)
   const THEMES = [
@@ -42,6 +57,7 @@
   let tubeDirty = [];   // 변화 있는 병만 다시 그린다 (유휴 시 CPU 절약)
   let fxDrawn = false;  // fx 캔버스에 지울 내용이 남아있는지
   let bubbleTimer = 800; // 기포 스폰 타이머(ms)
+  let levelStart = 0;   // 레벨 시작 시각 (클리어 소요 시간 표시용)
 
   // ── DOM ──
   const board = document.getElementById('board');
@@ -98,6 +114,7 @@
     const gen = C.generateLevel(level, NUM_COLORS, { nodeBudget: 80000 });
     tubes = gen.tubes;
     par = gen.par;
+    levelStart = Date.now();
     fillAmt = tubes.map((t) => t.length);
     wave = tubes.map(() => ({ a: 0, p: Math.random() * 6.28 }));
     bubbles = tubes.map(() => []);
@@ -110,6 +127,13 @@
     document.getElementById('moves').textContent = moves;
     document.getElementById('par').textContent = '≤' + par;
     document.getElementById('total-stars').textContent = totalStars();
+    document.getElementById('evo').textContent = evoFor(getMaxClear());
+  }
+
+  function fmtTime(ms) {
+    const s = Math.max(1, Math.round(ms / 1000));
+    const m = (s / 60) | 0;
+    return m ? `${m}분 ${s % 60}초` : `${s}초`;
   }
 
   // ── 토스트 ──
@@ -190,8 +214,8 @@
       const top = y - segH;
       const c = COLORS[r.c];
       const grad = ctx.createLinearGradient(0, top, 0, y);
-      grad.addColorStop(0, shade(c, 1.14));
-      grad.addColorStop(1, shade(c, 0.8));
+      grad.addColorStop(0, shade(c, SHADE_HI[r.c] || 1.14));
+      grad.addColorStop(1, shade(c, SHADE_LO[r.c] || 0.8));
       ctx.fillStyle = grad;
       ctx.fillRect(0, top, W, segH + 0.5);
       // 색이 바뀌는 지점에만 경계선 살짝
@@ -203,8 +227,9 @@
     const surfaceY = H - amt * unitH;
     const w = wave[idx];
     if (amt > 0.02 && runs.length) {
-      const sc = COLORS[runs[runs.length - 1].c];
-      ctx.fillStyle = shade(sc, 1.05);
+      const topC = runs[runs.length - 1].c;
+      const sc = COLORS[topC];
+      ctx.fillStyle = shade(sc, SHADE_HI[topC] ? 1.4 : 1.05);
       ctx.beginPath();
       ctx.moveTo(0, surfaceY + 4);
       const amp = w.a;
@@ -343,18 +368,24 @@
   function onWin() {
     busy = true;
     const stars = C.starsFor(moves, par);
+    const elapsed = Date.now() - levelStart;
     // 진행 저장 (별/베스트는 더 좋아진 경우만 갱신)
     const starsMap = loadJSON('vaseStars');
     if (!starsMap[level] || stars > starsMap[level]) { starsMap[level] = stars; saveJSON('vaseStars', starsMap); }
     const bestMap = loadJSON('vaseBest');
     const isRecord = !bestMap[level] || moves < bestMap[level];
     if (isRecord) { bestMap[level] = moves; saveJSON('vaseBest', bestMap); }
+    // 최고 도달 레벨 갱신 + 진화 체크
+    const maxBefore = getMaxClear();
+    if (level > maxBefore) localStorage.setItem('vaseMaxClear', String(level));
+    const evolved = evoFor(getMaxClear()) !== evoFor(maxBefore);
     localStorage.setItem('vaseLevel', String(level + 1)); // 클리어 화면에서 나가도 다음 레벨부터
     updateHUD();
 
     setTimeout(() => { A.win(); vibrate([30, 50, 30, 50, 90]); startWinFx(); }, 320);
     setTimeout(() => {
       document.getElementById('clear-level').textContent = level;
+      document.getElementById('clear-time').textContent = fmtTime(elapsed);
       document.getElementById('clear-moves').textContent = moves;
       document.getElementById('clear-par').textContent = '≤' + par;
       starEls.forEach((s) => s.classList.remove('on'));
@@ -366,6 +397,12 @@
       if (isRecord) {
         setTimeout(() => { recordEl.classList.add('show'); A.record(); }, 380 + stars * 340 + 120);
       }
+      if (evolved) {
+        setTimeout(() => {
+          toast(`✨ ${evoFor(getMaxClear())} 물친구가 진화했어요!`, 3000);
+          A.record(); vibrate([20, 40, 20, 40, 60]);
+        }, 380 + stars * 340 + 600);
+      }
     }, 780);
   }
 
@@ -373,6 +410,44 @@
     A.init(); A.uiClick();
     newGame(level + 1);
   });
+
+  // ── 레벨 선택: 깬 레벨 + 다음 레벨까지 선택 가능, 물친구 진화 전시 ──
+  const levelsModal = document.getElementById('levels');
+  function closeLevels() { levelsModal.classList.add('hidden'); }
+  function openLevels() {
+    const maxClear = getMaxClear();
+    const starsMap = loadJSON('vaseStars');
+    document.getElementById('evo-emoji').textContent = evoFor(maxClear);
+    const nx = nextEvo(maxClear);
+    document.getElementById('evo-text').innerHTML = nx
+      ? `최고 Lv${maxClear || 0} 클리어<br>Lv${nx[0]} 도달하면 ${nx[1]}로 진화!`
+      : `최고 Lv${maxClear} 클리어 · 최종 진화 완료! 🎉`;
+    const grid = document.getElementById('level-grid');
+    grid.innerHTML = '';
+    for (let lv = 1; lv <= maxClear + 1; lv++) {
+      const b = document.createElement('button');
+      b.className = 'lv-chip' + (lv === level ? ' cur' : '');
+      b.innerHTML = `${lv}<span class="chip-stars">${'★'.repeat(starsMap[lv] || 0) || '·'}</span>`;
+      b.addEventListener('click', () => { closeLevels(); A.uiClick(); newGame(lv); });
+      grid.appendChild(b);
+    }
+    for (let k = 0; k < 2; k++) { // 잠긴 다음 레벨 살짝 보여주기
+      const b = document.createElement('button');
+      b.className = 'lv-chip lock';
+      b.innerHTML = '🔒<span class="chip-stars">·</span>';
+      grid.appendChild(b);
+    }
+    levelsModal.classList.remove('hidden');
+    const cur = grid.querySelector('.cur');
+    if (cur) cur.scrollIntoView({ block: 'center' });
+  }
+  document.getElementById('level-btn').addEventListener('click', () => {
+    if (busy) return;
+    A.init(); A.uiClick();
+    openLevels();
+  });
+  document.getElementById('levels-close').addEventListener('click', closeLevels);
+  levelsModal.addEventListener('click', (e) => { if (e.target === levelsModal) closeLevels(); });
 
   // ── 간식 딥링크: PC에선 앱 스킴이 안 열리므로 "고마워요" 모달로 대체 ──
   const isMobile = () => /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -660,6 +735,10 @@
   // ── 시작 ──
   fitFx();
   const savedLevel = parseInt(localStorage.getItem('vaseLevel') || '1', 10);
+  // 옛 저장 호환: vaseLevel까지 도달했다면 그 전 레벨까지는 깬 것
+  if (Number.isFinite(savedLevel) && savedLevel - 1 > getMaxClear()) {
+    localStorage.setItem('vaseMaxClear', String(savedLevel - 1));
+  }
   newGame(Number.isFinite(savedLevel) && savedLevel > 0 ? savedLevel : 1);
   requestAnimationFrame(loop);
 })();

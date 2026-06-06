@@ -51,6 +51,9 @@
   .topbar.sub{margin-top:6px;}
   h1{font-family:'Fredoka',sans-serif;font-weight:700;font-size:21px;letter-spacing:-.5px;background:linear-gradient(135deg,#ffd6e8,#bdeaff 50%,#e0caff);-webkit-background-clip:text;background-clip:text;color:transparent;margin-right:auto;white-space:nowrap;}
   .pill{background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(10px);padding:6px 12px;border-radius:999px;font-size:12px;font-family:'Fredoka',sans-serif;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  button.pill{cursor:pointer;color:#f1edff;transition:transform .12s;}
+  button.pill:active{transform:scale(.93);}
+  #evo{font-size:15px;}
   .pill .par{opacity:.65;margin-left:2px;}
   .spacer{margin-left:auto;}
   button.btn{
@@ -160,6 +163,48 @@
   #snack a.toss{background:#3182f6;color:#fff;}
   #snack a.kakao{background:#fee500;color:#3c1e1e;}
 
+  /* ── 레벨 선택 모달 ── */
+  #levels{
+    position:fixed;inset:0;z-index:80;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(8,6,20,.6);backdrop-filter:blur(5px);
+    animation:fadein .2s ease;
+  }
+  #levels.hidden{display:none;}
+  .levels-card{
+    background:#1d1738;border:1px solid var(--glass-border);
+    border-radius:26px;padding:22px 20px;width:min(350px,90vw);max-height:80dvh;
+    display:flex;flex-direction:column;text-align:center;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);
+    animation:pop-in .3s cubic-bezier(.2,1.2,.4,1);
+  }
+  .levels-card h2{font-family:'Fredoka',sans-serif;font-size:20px;color:#ffd6e8;margin-bottom:12px;}
+  #evo-box{
+    display:flex;align-items:center;gap:14px;justify-content:center;
+    background:var(--glass);border:1px solid var(--glass-border);
+    border-radius:16px;padding:10px 16px;margin-bottom:14px;
+  }
+  #evo-emoji{font-size:40px;filter:drop-shadow(0 0 10px rgba(120,200,255,.5));}
+  #evo-text{font-size:12.5px;color:#c9bfe8;text-align:left;line-height:1.5;}
+  #level-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;overflow-y:auto;padding:2px;min-height:0;}
+  .lv-chip{
+    border:1px solid var(--glass-border);background:var(--glass);border-radius:12px;
+    color:#f1edff;font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;
+    padding:7px 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;
+    transition:transform .12s;
+  }
+  .lv-chip .chip-stars{font-size:9px;color:#ffd66b;letter-spacing:1px;min-height:11px;}
+  .lv-chip.cur{border-color:#ffe27a;box-shadow:0 0 10px rgba(255,226,122,.4);}
+  .lv-chip.lock{opacity:.35;cursor:default;}
+  .lv-chip:active:not(.lock){transform:scale(.94);}
+  #levels-close{
+    margin-top:14px;font-size:15px;font-weight:700;padding:11px 0;font-family:'Fredoka',sans-serif;
+    border:none;border-radius:999px;cursor:pointer;
+    background:linear-gradient(135deg,#7c5bef,#1aa6ff);color:#fff;
+    box-shadow:0 5px 16px rgba(60,80,220,.4);
+  }
+  #levels-close:active{transform:scale(.96);}
+
   /* ── 고마워요 모달 (PC 딥링크 fallback) ── */
   #thanks{
     position:fixed;inset:0;z-index:90;
@@ -206,7 +251,7 @@
 
   <div class="topbar">
     <h1>물병 정렬</h1>
-    <div class="pill">Lv <b id="level">1</b></div>
+    <button class="pill" id="level-btn" aria-label="레벨 선택"><span id="evo">💧</span> Lv <b id="level">1</b> ▾</button>
     <div class="pill">⭐ <b id="total-stars">0</b></div>
     <button class="btn btn-ghost" id="mute" aria-label="소리 켜기/끄기">🔊</button>
   </div>
@@ -227,7 +272,7 @@
     <div class="clear-card">
       <h2>🎉 레벨 <span id="clear-level">1</span> 클리어!</h2>
       <div id="stars"><span class="star">⭐</span><span class="star">⭐</span><span class="star">⭐</span></div>
-      <div id="clear-stats">이동 <b id="clear-moves">0</b> · 🎯 <span id="clear-par">0</span></div>
+      <div id="clear-stats">⏱ <b id="clear-time">0초</b> · 이동 <b id="clear-moves">0</b> · 🎯 <span id="clear-par">0</span></div>
       <span id="clear-record">🏆 신기록!</span>
       <button id="btn-next">다음 레벨 →</button>
       <div id="snack">
@@ -237,6 +282,19 @@
           <a class="kakao" href="https://qr.kakaopay.com/FP0dZW9ip" target="_blank" rel="noopener">카카오페이</a>
         </span>
       </div>
+    </div>
+  </div>
+
+  <!-- 레벨 선택: 깬 레벨까지 자유롭게, 물친구 진화 전시 -->
+  <div id="levels" class="hidden">
+    <div class="levels-card">
+      <h2>레벨 선택</h2>
+      <div id="evo-box">
+        <span id="evo-emoji">💧</span>
+        <div id="evo-text"></div>
+      </div>
+      <div id="level-grid"></div>
+      <button id="levels-close">닫기</button>
     </div>
   </div>
 

@@ -40,14 +40,30 @@ const VaseCore = (() => {
   const isWin = (tubes) => tubes.every((t) => t.length === 0 || isComplete(t));
 
   // ── 판 생성 ──
-  // sizes: 병별 유닛 수 배열 (0 = 빈 병). 합은 numColors*CAP 이어야 한다.
-  function generateBoard(numColors, sizes, rng) {
+  // fillColors: "가득 병 분량"의 색 목록 (중복 가능 — 같은 색 두 병 분량 = 더블 컬러)
+  // sizes: 병별 유닛 수 배열 (0 = 빈 병). 합은 fillColors.length*CAP 이어야 한다.
+  function generateBoard(fillColors, sizes, rng) {
     rng = rng || Math.random;
+    // 완전 랜덤 셔플 대신 "런" 단위로 풀을 만든다:
+    // 같은 색 2칸(가끔 3칸) 덩어리가 자연스럽게 섞여 손맛이 좋아진다
+    const remain = {};
+    let total = 0;
+    for (const c of fillColors) { remain[c] = (remain[c] || 0) + CAP; total += CAP; }
     const pool = [];
-    for (let c = 0; c < numColors; c++) for (let i = 0; i < CAP; i++) pool.push(c);
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = (rng() * (i + 1)) | 0;
-      [pool[i], pool[j]] = [pool[j], pool[i]];
+    while (pool.length < total) {
+      // 남은 유닛 수 가중 랜덤으로 색 선택 (마지막에 한 색만 몰리는 것 방지)
+      let r = rng() * (total - pool.length);
+      let c = null;
+      for (const k in remain) {
+        if (remain[k] <= 0) continue;
+        r -= remain[k];
+        if (r <= 0) { c = k; break; }
+      }
+      if (c === null) for (const k in remain) if (remain[k] > 0) { c = k; break; }
+      let run = 1 + (rng() < 0.45 ? 1 : 0) + (rng() < 0.1 ? 1 : 0); // 1~3칸, 2칸이 자주
+      run = Math.min(run, remain[c]);
+      for (let i = 0; i < run; i++) pool.push(Number(c));
+      remain[c] -= run;
     }
     const tubes = [];
     let p = 0;
@@ -63,30 +79,47 @@ const VaseCore = (() => {
   }
 
   // ── 난이도 곡선 ──
-  // 레벨이 오를수록 빈 병이 줄고, 고레벨(11+)은 빈 병 0개 —
-  // 대신 "꽉 차지 않은 병"의 수(=여유 공간)로 난이도를 조절한다.
-  // N = 물이 든 병 수, E = 빈 병 수. 여유 공간 = N*CAP - 32 + E*CAP
-  function levelSizes(level, numColors, rng) {
+  // 레벨이 오를수록 빈 병이 줄고(4→0), 그다음엔 색 슬롯을 늘려(더블 컬러)
+  // 판 자체가 커진다. 병은 최대 16개.
+  // 밴드 = [F(색 슬롯 수, 중복 허용), N(물 든 병 수), E(빈 병 수)] — 2레벨마다 한 단계
+  const BANDS = [
+    [8, 8, 4],   // lv1-2   입문: 12병, 여유 16
+    [8, 8, 3],   // lv3-4
+    [8, 8, 2],   // lv5-6
+    [8, 10, 1],  // lv7-8   부분 충전 병 등장
+    [8, 9, 1],   // lv9-10
+    [8, 12, 0],  // lv11-12 빈 병 제로
+    [8, 11, 0],  // lv13-14
+    [8, 10, 0],  // lv15-16
+    [8, 9, 0],   // lv17-18 타이트: 여유 4
+    [10, 10, 2], // lv19-20 더블 컬러 등장 (40유닛)
+    [10, 12, 0], // lv21-22
+    [12, 12, 2], // lv23-24 48유닛, 14병
+    [12, 14, 0], // lv25-26
+    [14, 14, 2], // lv27-28 56유닛, 16병
+    [14, 16, 0], // lv29+   최대: 16병 전부 부분 충전, 여유 8
+  ];
+  function levelConfig(level, numColors, rng) {
     rng = rng || Math.random;
-    const U = numColors * CAP;
-    let N, E;
-    if (level <= 2)       { N = numColors;     E = 4; } // 입문: 빈 병 4
-    else if (level <= 4)  { N = numColors;     E = 3; }
-    else if (level <= 6)  { N = numColors;     E = 2; }
-    else if (level <= 8)  { N = numColors + 2; E = 1; } // 부분 충전 병 등장
-    else if (level <= 10) { N = numColors + 1; E = 1; }
-    else if (level <= 12) { N = numColors + 4; E = 0; } // 빈 병 제로
-    else if (level <= 14) { N = numColors + 3; E = 0; }
-    else if (level <= 16) { N = numColors + 2; E = 0; }
-    else                  { N = numColors + 1; E = 0; } // 최고 난이도: 여유 4칸
+    const [F, N, E] = BANDS[Math.min(BANDS.length - 1, ((level - 1) / 2) | 0)];
+    // 색 슬롯: 팔레트를 섞은 뒤 라운드로빈 — F가 8을 넘으면 일부 색이 두 병 분량
+    const colorList = [];
+    for (let c = 0; c < numColors; c++) colorList.push(c);
+    for (let i = colorList.length - 1; i > 0; i--) {
+      const j = (rng() * (i + 1)) | 0;
+      [colorList[i], colorList[j]] = [colorList[j], colorList[i]];
+    }
+    const fillColors = [];
+    for (let k = 0; k < F; k++) fillColors.push(colorList[k % numColors]);
+    // N개 병에 F*CAP 유닛 배분: 전부 4에서 시작해 랜덤 감소 → 부분 충전 병
     const sizes = Array(N).fill(CAP);
-    let shed = CAP * N - U; // 덜어낼 유닛 수 → 부분 충전 병이 생긴다
+    let shed = CAP * (N - F);
     while (shed > 0) {
       const i = (rng() * N) | 0;
       if (sizes[i] > 1) { sizes[i]--; shed--; }
     }
     for (let e = 0; e < E; e++) sizes.push(0);
-    return sizes;
+    return { fillColors, sizes };
   }
 
   // ── 솔버 (그리디 정렬 DFS + 정규화 방문 집합, 노드 예산 한정) ──
@@ -166,9 +199,9 @@ const VaseCore = (() => {
     return seg;
   }
 
-  // 주어진 sizes로 풀 수 있는 판을 찾는다 (성공 시 par = 최단 발견 풀이 길이)
-  function trySolvable(numColors, sizes, rng, nodeBudget, restarts) {
-    const tubes = generateBoard(numColors, sizes, rng);
+  // 주어진 구성으로 풀 수 있는 판을 찾는다 (성공 시 par = 최단 발견 풀이 길이)
+  function trySolvable(fillColors, sizes, rng, nodeBudget, restarts) {
+    const tubes = generateBoard(fillColors, sizes, rng);
     const r = solve(tubes, nodeBudget);
     if (!r.solved) return null;
     let best = r.moves;
@@ -187,8 +220,10 @@ const VaseCore = (() => {
     const maxTries = opts.maxTries || 12;
     const nodeBudget = opts.nodeBudget || 80000;
     const restarts = opts.restarts || 4;
+    const fillColors = [];
+    for (let c = 0; c < numColors; c++) fillColors.push(c);
     for (let i = 0; i < maxTries; i++) {
-      const found = trySolvable(numColors, sizesFor(numColors, empties), rng, nodeBudget, restarts);
+      const found = trySolvable(fillColors, sizesFor(numColors, empties), rng, nodeBudget, restarts);
       if (found) return found;
     }
     // 도달 거의 불가: 빈 병 하나 더 주고 재시도
@@ -206,9 +241,9 @@ const VaseCore = (() => {
     const restarts = opts.restarts || 4;
     for (let relax = 0; relax <= 2; relax++) {
       for (let t = 0; t < maxTries; t++) {
-        const sizes = levelSizes(level, numColors, rng);
+        const { fillColors, sizes } = levelConfig(level, numColors, rng);
         for (let e = 0; e < relax; e++) sizes.push(0);
-        const found = trySolvable(numColors, sizes, rng, nodeBudget, restarts);
+        const found = trySolvable(fillColors, sizes, rng, nodeBudget, restarts);
         if (found) return found;
       }
     }
@@ -226,7 +261,7 @@ const VaseCore = (() => {
 
   return {
     CAP, topColor, topCount, canPour, pourAmount, applyPour,
-    isComplete, isWin, generateBoard, sizesFor, levelSizes,
+    isComplete, isWin, generateBoard, sizesFor, levelConfig,
     generateSolvableBoard, generateLevel,
     solve, legalMoves, canon, countSegments, starsFor,
   };
